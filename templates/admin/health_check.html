@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <div id="content-main">
+    <p>Contrôles calculés avec l'ORM. La date de référence des expéditions bloquées est le {{ cutoff_date|date:"d/m/Y" }}.</p>
+    <div class="module">
+      <table>
+        <thead>
+          <tr><th>Contrôle</th><th>Règle suivie et scénario de production</th><th>Anomalies</th></tr>
+        </thead>
+        <tbody>
+          {% for check in checks %}
+            <tr>
+              <th>{{ check.title }}</th>
+              <td>
+                <p><strong>Règle :</strong> {{ check.rule }}</p>
+                <p><strong>Scénario :</strong> {{ check.scenario }}</p>
+                {% if check.items %}
+                  <ul>{% for item in check.items %}<li>{{ item }}</li>{% endfor %}</ul>
+                  {% if check.count > 20 %}<p>20 premiers résultats affichés sur {{ check.count }}.</p>{% endif %}
+                {% else %}
+                  <p>Aucun enregistrement concerné.</p>
+                {% endif %}
+              </td>
+              <td><strong>{{ check.count }}</strong></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p><a class="button" href="{% url 'admin:index' %}">Retour à l'administration</a></p>
+  </div>
+{% endblock %}
