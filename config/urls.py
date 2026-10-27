@@ -15,9 +15,10 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.urls import path
-
+from django.urls import include, path
 from config.admin_site import transconnect_admin_site
 
 urlpatterns = [
     path('admin/', transconnect_admin_site.urls),
+    path('expedition/', include('ExpeditionsApp.urls')),  # Redirect root URL to admin site
 ]

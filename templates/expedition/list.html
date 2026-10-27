@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Document</title>
+</head>
+<body>
+    <h1>expedition list </h1>
+    <ul>
+        {% for expedition in list %}
+            <li>{{ expedition.reference }} - {{ expedition.entreprise }}</li>
+            {% empty %}
+             </li>No expeditions found</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
