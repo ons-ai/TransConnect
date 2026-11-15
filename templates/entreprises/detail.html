@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ entreprise.raison_sociale }} — TransConnect{% endblock %}
+{% block content %}
+  <h2>{{ entreprise.raison_sociale|upper }}</h2>
+  <dl>
+    <dt>Type</dt><dd>{{ entreprise.get_type_entreprise_display|capfirst }}</dd>
+    <dt>Matricule fiscal</dt><dd>{{ entreprise.matricule_fiscal|upper }}</dd>
+    <dt>Adresse</dt><dd>{{ entreprise.adresse|linebreaks }}</dd>
+    <dt>Contact</dt><dd>{{ entreprise.utilisateur.get_full_name|default:entreprise.utilisateur.username|title }}</dd>
+  </dl>
+  {% if entreprise.type_entreprise == "transporteur" %}
+    <h3>Véhicules</h3>
+    <ul>{% for vehicule in vehicules %}<li><a href="{% url 'vehicules:detail' vehicule.pk %}">{{ vehicule.immatriculation|upper }}</a></li>
+      {% empty %}<li>Aucun véhicule.</li>{% endfor %}</ul>
+    <p><a href="{% url 'vehicules:ajouter' entreprise.pk %}">Ajouter un véhicule</a></p>
+    <p><a href="{% url 'offres:ajouter' entreprise.pk %}">Proposer une offre</a></p>
+  {% else %}
+    <h3>Expéditions</h3>
+    <ul>{% for expedition in expeditions %}<li><a href="{% url 'expeditions:detail' expedition.reference %}">{{ expedition.reference }}</a> — {{ expedition.ville_depart|title }} → {{ expedition.ville_arrivee|title }}</li>
+      {% empty %}<li>Aucune expédition.</li>{% endfor %}</ul>
+    <p><a href="{% url 'expeditions:ajouter' entreprise.pk %}">Ajouter une expédition</a></p>
+  {% endif %}
+{% endblock %}

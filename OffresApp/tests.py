@@ -300,3 +300,281 @@ class SeedDemoCommandTests(TestCase):
         self.assertEqual(second.offres.filter(statut=Offre.Statut.PROPOSEE).count(), 2)
         with self.assertRaises(CommandError):
             call_command("seed_demo", stdout=None)
+
+
+class TransConnectViewsTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.shipper = Entreprise.objects.create(
+            raison_sociale="Chargeur pour vues",
+            matricule_fiscal="4567890AAM000",
+            type_entreprise=Entreprise.TypeEntreprise.CHARGEUR,
+            adresse="12 avenue des tests, Sousse, Tunisie",
+            utilisateur=User.objects.create_user(
+                username="views-shipper", email="views.shipper@gmail.com", password="pw"
+            ),
+        )
+        self.carrier = Entreprise.objects.create(
+            raison_sociale="Transporteur pour vues",
+            matricule_fiscal="5678901BBP000",
+            type_entreprise=Entreprise.TypeEntreprise.TRANSPORTEUR,
+            adresse="18 rue des tests, Tunis, Tunisie",
+            utilisateur=User.objects.create_user(
+                username="views-carrier", email="views.carrier@gmail.com", password="pw"
+            ),
+        )
+        self.other_carrier = Entreprise.objects.create(
+            raison_sociale="Autre transporteur",
+            matricule_fiscal="6789012DAN000",
+            type_entreprise=Entreprise.TypeEntreprise.TRANSPORTEUR,
+            adresse="20 avenue des tests, Sfax, Tunisie",
+            utilisateur=User.objects.create_user(
+                username="views-carrier-2", email="views.carrier2@gmail.com", password="pw"
+            ),
+        )
+        self.vehicle = Vehicule.objects.create(
+            immatriculation="TU-VIEW-1",
+            type_vehicule=Vehicule.TypeVehicule.FOURGON,
+            capacite_kg=3000,
+            entreprise=self.carrier,
+        )
+        self.other_vehicle = Vehicule.objects.create(
+            immatriculation="TU-VIEW-2",
+            type_vehicule=Vehicule.TypeVehicule.FOURGON,
+            capacite_kg=3000,
+            entreprise=self.other_carrier,
+        )
+        self.expedition = Expedition.objects.create(
+            ville_depart="Tunis",
+            ville_arrivee="Sousse",
+            poids_kg=Decimal("1200.00"),
+            date_souhaitee=timezone.localdate() + timedelta(days=3),
+            description="Colis de test de navigation et de formulaires.",
+            entreprise=self.shipper,
+        )
+
+    def test_namespaced_pages_render_and_missing_detail_returns_404(self):
+        offer = Offre.objects.create(
+            expedition=self.expedition,
+            transporteur=self.carrier,
+            vehicule=self.vehicle,
+            prix=Decimal("450.00"),
+            delai_jours=2,
+        )
+        page_names = (
+            "expeditions:liste",
+            "vehicules:liste",
+            "offres:liste",
+            "entreprises:liste",
+        )
+        for name in page_names:
+            with self.subTest(name=name):
+                self.assertEqual(self.client.get(reverse(name)).status_code, 200)
+
+        detail_urls = (
+            reverse("expeditions:detail", kwargs={"reference": self.expedition.reference}),
+            reverse("vehicules:detail", kwargs={"pk": self.vehicle.pk}),
+            reverse("offres:detail", kwargs={"pk": offer.pk}),
+            reverse("entreprises:detail", kwargs={"pk": self.shipper.pk}),
+            reverse("entreprises:detail", kwargs={"pk": self.carrier.pk}),
+        )
+        for url in detail_urls:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+
+        self.assertEqual(
+            self.client.get(reverse("expeditions:detail", kwargs={"reference": "EXP-99-99999"})).status_code,
+            404,
+        )
+
+    def test_vehicle_form_hides_ownership_and_availability_and_create_uses_route_company(self):
+        url = reverse("vehicules:ajouter", kwargs={"entreprise_id": self.carrier.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("entreprise", response.context["form"].fields)
+        self.assertNotIn("disponible", response.context["form"].fields)
+
+        response = self.client.post(url, {
+            "immatriculation": "TU-VIEW-NEW",
+            "type_vehicule": Vehicule.TypeVehicule.FOURGON,
+            "capacite_kg": 2500,
+            "entreprise": self.other_carrier.pk,
+            "disponible": "false",
+        })
+        self.assertEqual(response.status_code, 302)
+        created = Vehicule.objects.get(immatriculation="TU-VIEW-NEW")
+        self.assertEqual(created.entreprise, self.carrier)
+        self.assertTrue(created.disponible)
+
+        response = self.client.post(
+            reverse("vehicules:modifier", kwargs={"pk": created.pk, "entreprise_id": self.carrier.pk}),
+            {
+                "immatriculation": "TU-VIEW-NEW",
+                "type_vehicule": Vehicule.TypeVehicule.FOURGON,
+                "capacite_kg": 2600,
+                "entreprise": self.other_carrier.pk,
+                "disponible": "false",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        created.refresh_from_db()
+        self.assertEqual(created.capacite_kg, 2600)
+        self.assertEqual(created.entreprise, self.carrier)
+        self.assertTrue(created.disponible)
+
+    def test_expedition_create_and_update_keep_company_and_status_server_side(self):
+        create_url = reverse("expeditions:ajouter", kwargs={"entreprise_id": self.shipper.pk})
+        response = self.client.get(create_url)
+        self.assertNotIn("entreprise", response.context["form"].fields)
+        self.assertNotIn("statut", response.context["form"].fields)
+        response = self.client.post(create_url, {
+            "ville_depart": "Tunis",
+            "ville_arrivee": "Bizerte",
+            "poids_kg": "900.00",
+            "date_souhaitee": (timezone.localdate() + timedelta(days=4)).isoformat(),
+            "description": "Nouvelle expédition issue du formulaire web.",
+            "entreprise": self.other_carrier.pk,
+            "statut": Expedition.Statut.ANNULEE,
+        })
+        self.assertEqual(response.status_code, 302)
+        created = Expedition.objects.get(ville_arrivee="Bizerte")
+        self.assertEqual(created.entreprise, self.shipper)
+        self.assertEqual(created.statut, Expedition.Statut.PUBLIEE)
+
+        update_url = reverse(
+            "expeditions:modifier",
+            kwargs={"reference": created.reference, "entreprise_id": self.shipper.pk},
+        )
+        response = self.client.post(update_url, {
+            "ville_depart": "Sfax",
+            "ville_arrivee": "Bizerte",
+            "poids_kg": "900.00",
+            "date_souhaitee": (timezone.localdate() + timedelta(days=5)).isoformat(),
+            "description": "Mise à jour du trajet.",
+            "entreprise": self.other_carrier.pk,
+            "statut": Expedition.Statut.ANNULEE,
+        })
+        self.assertEqual(response.status_code, 302)
+        created.refresh_from_db()
+        self.assertEqual(created.ville_depart, "Sfax")
+        self.assertEqual(created.entreprise, self.shipper)
+        self.assertEqual(created.statut, Expedition.Statut.PUBLIEE)
+
+    def test_offer_form_sets_carrier_and_status_on_server_and_limits_choices(self):
+        url = reverse("offres:ajouter", kwargs={"entreprise_id": self.carrier.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        form = response.context["form"]
+        self.assertNotIn("transporteur", form.fields)
+        self.assertNotIn("statut", form.fields)
+        self.assertEqual(list(form.fields["vehicule"].queryset), [self.vehicle])
+        self.assertEqual(list(form.fields["expedition"].queryset), [self.expedition])
+
+        response = self.client.post(url, {
+            "expedition": self.expedition.pk,
+            "vehicule": self.vehicle.pk,
+            "prix": "500.00",
+            "delai_jours": 2,
+            "transporteur": self.other_carrier.pk,
+            "statut": Offre.Statut.ACCEPTEE,
+        })
+        self.assertEqual(response.status_code, 302)
+        created = Offre.objects.get(expedition=self.expedition, transporteur=self.carrier)
+        self.assertEqual(created.statut, Offre.Statut.PROPOSEE)
+        self.assertEqual(created.vehicule, self.vehicle)
+        self.expedition.refresh_from_db()
+        self.assertEqual(self.expedition.statut, Expedition.Statut.PUBLIEE)
+
+    def test_offer_model_validation_is_returned_as_a_form_error(self):
+        Offre.objects.create(
+            expedition=self.expedition,
+            transporteur=self.carrier,
+            vehicule=self.vehicle,
+            prix=Decimal("450.00"),
+            delai_jours=2,
+        )
+        response = self.client.post(
+            reverse("offres:ajouter", kwargs={"entreprise_id": self.carrier.pk}),
+            {
+                "expedition": self.expedition.pk,
+                "vehicule": self.vehicle.pk,
+                "prix": "500.00",
+                "delai_jours": 3,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].non_field_errors())
+        self.assertEqual(Offre.objects.count(), 1)
+
+    def test_delete_confirmation_get_does_not_delete_and_post_does(self):
+        url = reverse("vehicules:supprimer", kwargs={"pk": self.other_vehicle.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Vehicule.objects.filter(pk=self.other_vehicle.pk).exists())
+
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Vehicule.objects.filter(pk=self.other_vehicle.pk).exists())
+
+        proposed = Offre.objects.create(
+            expedition=self.expedition,
+            transporteur=self.carrier,
+            vehicule=self.vehicle,
+            prix=Decimal("450.00"),
+            delai_jours=2,
+        )
+        offer_url = reverse("offres:supprimer", kwargs={"pk": proposed.pk})
+        self.assertEqual(self.client.get(offer_url).status_code, 200)
+        self.assertTrue(Offre.objects.filter(pk=proposed.pk).exists())
+        self.assertEqual(self.client.post(offer_url).status_code, 302)
+        self.assertFalse(Offre.objects.filter(pk=proposed.pk).exists())
+
+        accepted = Offre.objects.create(
+            expedition=self.expedition,
+            transporteur=self.carrier,
+            vehicule=self.vehicle,
+            prix=Decimal("450.00"),
+            delai_jours=2,
+        )
+        accepted.statut = Offre.Statut.ACCEPTEE
+        accepted.save()
+        self.assertEqual(self.client.get(reverse("offres:supprimer", kwargs={"pk": accepted.pk})).status_code, 404)
+        blocked_delete = reverse("vehicules:supprimer", kwargs={"pk": self.vehicle.pk})
+        self.assertEqual(self.client.get(blocked_delete).status_code, 404)
+        self.assertTrue(Vehicule.objects.filter(pk=self.vehicle.pk).exists())
+
+        shipment_url = reverse("expeditions:supprimer", kwargs={"reference": self.expedition.reference})
+        self.assertEqual(self.client.get(shipment_url).status_code, 200)
+        self.assertTrue(Expedition.objects.filter(pk=self.expedition.pk).exists())
+        self.assertEqual(self.client.post(shipment_url).status_code, 302)
+        self.assertFalse(Expedition.objects.filter(pk=self.expedition.pk).exists())
+
+    def test_vehicle_update_cannot_cross_company_boundary(self):
+        response = self.client.get(reverse(
+            "vehicules:modifier",
+            kwargs={"pk": self.other_vehicle.pk, "entreprise_id": self.carrier.pk},
+        ))
+        self.assertEqual(response.status_code, 404)
+
+    def test_offer_update_only_changes_terms_of_the_route_carriers_proposal(self):
+        offer = Offre.objects.create(
+            expedition=self.expedition,
+            transporteur=self.carrier,
+            vehicule=self.vehicle,
+            prix=Decimal("450.00"),
+            delai_jours=2,
+        )
+        url = reverse("offres:modifier", kwargs={"pk": offer.pk, "entreprise_id": self.carrier.pk})
+        response = self.client.get(url)
+        self.assertEqual(set(response.context["form"].fields), {"prix", "delai_jours"})
+        response = self.client.post(url, {
+            "prix": "475.00",
+            "delai_jours": 3,
+            "statut": Offre.Statut.ACCEPTEE,
+            "transporteur": self.other_carrier.pk,
+        })
+        self.assertEqual(response.status_code, 302)
+        offer.refresh_from_db()
+        self.assertEqual(offer.prix, Decimal("475.00"))
+        self.assertEqual(offer.transporteur, self.carrier)
+        self.assertEqual(offer.statut, Offre.Statut.PROPOSEE)

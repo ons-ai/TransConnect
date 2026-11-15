@@ -1,9 +1,17 @@
-from .views import *
 from django.urls import path
 
+from . import views
+
+app_name = "expeditions"
+
 urlpatterns = [
-    path('home/', home, name='home'),
-    path('w/<str:name>/', welcome, name='welcomeFunction'),
-    path('list/', list_expeditions, name='list_expeditions'),
-    path('details/<int:id>/', detail_expedition, name='detail_expedition')
+    path("", views.ExpeditionListView.as_view(), name="liste"),
+    path("ajouter/<int:entreprise_id>/", views.ExpeditionCreateView.as_view(), name="ajouter"),
+    path("<str:reference>/", views.ExpeditionDetailView.as_view(), name="detail"),
+    path(
+        "<str:reference>/modifier/<int:entreprise_id>/",
+        views.ExpeditionUpdateView.as_view(),
+        name="modifier",
+    ),
+    path("<str:reference>/supprimer/", views.ExpeditionDeleteView.as_view(), name="supprimer"),
 ]

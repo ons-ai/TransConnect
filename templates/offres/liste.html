@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Offres — TransConnect{% endblock %}
+{% block content %}
+  <h2>Offres de transport</h2>
+  <ul>
+    {% for offre in offres %}
+      <li><a href="{% url 'offres:detail' offre.pk %}">{{ offre.expedition.reference }}</a>
+        — {{ offre.transporteur.raison_sociale|upper }} : {{ offre.prix }} TND,
+        {{ offre.delai_jours }} jour{{ offre.delai_jours|pluralize }}
+        — {{ offre.get_statut_display|capfirst }}</li>
+    {% empty %}<li>Aucune offre enregistrée.</li>{% endfor %}
+  </ul>
+{% endblock %}

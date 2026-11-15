@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Véhicules — TransConnect{% endblock %}
+{% block content %}
+  <h2>Véhicules</h2>
+  <ul>
+    {% for vehicule in vehicules %}
+      <li><a href="{% url 'vehicules:detail' vehicule.pk %}">{{ vehicule.immatriculation|upper }}</a>
+        — {{ vehicule.get_type_vehicule_display|capfirst }}, {{ vehicule.capacite_kg }} kg
+        — disponible : {{ vehicule.disponible|yesno:"oui,non" }}
+        — {{ vehicule.entreprise.raison_sociale|title }}</li>
+    {% empty %}<li>Aucun véhicule enregistré.</li>{% endfor %}
+  </ul>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Entreprises — TransConnect{% endblock %}
+{% block content %}
+  <h2>Entreprises</h2>
+  <ul>
+    {% for entreprise in entreprises %}
+      <li><a href="{% url 'entreprises:detail' entreprise.pk %}">{{ entreprise.raison_sociale|upper }}</a>
+        — {{ entreprise.get_type_entreprise_display|capfirst }}
+        — {{ entreprise.utilisateur.get_full_name|default:entreprise.utilisateur.username|title }}</li>
+    {% empty %}<li>Aucune entreprise enregistrée.</li>{% endfor %}
+  </ul>
+{% endblock %}

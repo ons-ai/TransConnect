@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ expedition.reference }} — TransConnect{% endblock %}
+{% block content %}
+  <h2>Expédition {{ expedition.reference }}</h2>
+  <dl>
+    <dt>Trajet</dt><dd>{{ expedition.ville_depart|title }} → {{ expedition.ville_arrivee|title }}</dd>
+    <dt>Poids</dt><dd>{{ expedition.poids_kg }} kg</dd>
+    <dt>Date souhaitée</dt><dd>{{ expedition.date_souhaitee|date:"d/m/Y" }}</dd>
+    <dt>Statut</dt><dd>{{ expedition.get_statut_display|capfirst }}</dd>
+    <dt>Chargeur</dt><dd><a href="{% url 'entreprises:detail' expedition.entreprise_id %}">{{ expedition.entreprise.raison_sociale|upper }}</a></dd>
+    <dt>Description</dt><dd>{{ expedition.description|default:"Aucune description."|linebreaks }}</dd>
+  </dl>
+  <p>Offres reçues : {{ offres|length }}</p>
+  <ul>
+    {% for offre in offres %}
+      <li><a href="{% url 'offres:detail' offre.pk %}">{{ offre.transporteur.raison_sociale|title }}</a>
+        — {{ offre.prix }} TND, {{ offre.delai_jours }} jour{{ offre.delai_jours|pluralize }}
+        ({{ offre.get_statut_display|capfirst }})</li>
+    {% empty %}<li>Aucune offre pour le moment.</li>{% endfor %}
+  </ul>
+  <p class="actions">
+    <a href="{% url 'expeditions:modifier' expedition.reference expedition.entreprise_id %}">Modifier</a>
+    <a href="{% url 'expeditions:supprimer' expedition.reference %}">Supprimer</a>
+  </p>
+{% endblock %}

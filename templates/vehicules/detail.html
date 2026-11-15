@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ vehicule.immatriculation }} — TransConnect{% endblock %}
+{% block content %}
+  <h2>Véhicule {{ vehicule.immatriculation|upper }}</h2>
+  <dl>
+    <dt>Type</dt><dd>{{ vehicule.get_type_vehicule_display|capfirst }}</dd>
+    <dt>Capacité</dt><dd>{{ vehicule.capacite_kg }} kg</dd>
+    <dt>Disponible</dt><dd>{{ vehicule.disponible|yesno:"oui,non" }}</dd>
+    <dt>Transporteur</dt><dd><a href="{% url 'entreprises:detail' vehicule.entreprise_id %}">{{ vehicule.entreprise.raison_sociale|upper }}</a></dd>
+  </dl>
+  <h3>Offres associées</h3>
+  <ul>{% for offre in offres %}<li><a href="{% url 'offres:detail' offre.pk %}">{{ offre.expedition.reference }}</a> — {{ offre.get_statut_display|capfirst }}</li>
+    {% empty %}<li>Aucune offre associée.</li>{% endfor %}</ul>
+  <p class="actions">
+    <a href="{% url 'vehicules:modifier' vehicule.pk vehicule.entreprise_id %}">Modifier</a>
+    {% if can_delete %}<a href="{% url 'vehicules:supprimer' vehicule.pk %}">Supprimer</a>{% endif %}
+  </p>
+{% endblock %}

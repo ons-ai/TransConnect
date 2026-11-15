@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Expéditions disponibles — TransConnect{% endblock %}
+{% block content %}
+  <h2>Expéditions publiées</h2>
+  <ul>
+    {% for expedition in expeditions %}
+      <li>
+        <a href="{% url 'expeditions:detail' expedition.reference %}">{{ expedition.reference }}</a>
+        — {{ expedition.ville_depart|title }} → {{ expedition.ville_arrivee|title }}
+        ({{ expedition.poids_kg|floatformat:0 }} kg, souhaitée le {{ expedition.date_souhaitee|date:"d/m/Y" }})
+        <br><small>{{ expedition.description|default:"Aucune description fournie."|truncatewords:15 }}</small>
+        <br><small>Chargeur : {{ expedition.entreprise.raison_sociale|upper }}</small>
+      </li>
+    {% empty %}
+      <li>Aucune expédition disponible pour le moment.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

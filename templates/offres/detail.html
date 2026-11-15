@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Offre #{{ offre.pk }} — TransConnect{% endblock %}
+{% block content %}
+  <h2>Offre pour {{ offre.expedition.reference }}</h2>
+  <dl>
+    <dt>Transporteur</dt><dd><a href="{% url 'entreprises:detail' offre.transporteur_id %}">{{ offre.transporteur.raison_sociale|title }}</a></dd>
+    <dt>Véhicule</dt><dd><a href="{% url 'vehicules:detail' offre.vehicule_id %}">{{ offre.vehicule.immatriculation|upper }}</a></dd>
+    <dt>Prix</dt><dd>{{ offre.prix }} TND</dd>
+    <dt>Délai</dt><dd>{{ offre.delai_jours }} jour{{ offre.delai_jours|pluralize }}</dd>
+    <dt>Statut</dt><dd>{{ offre.get_statut_display|capfirst }}</dd>
+    <dt>Proposée le</dt><dd>{{ offre.date_proposition|date:"d/m/Y" }}</dd>
+  </dl>
+  {% if offre.statut == "proposee" %}
+    <p class="actions">
+      <a href="{% url 'offres:modifier' offre.pk offre.transporteur_id %}">Modifier</a>
+      <a href="{% url 'offres:supprimer' offre.pk %}">Retirer</a>
+    </p>
+  {% endif %}
+{% endblock %}

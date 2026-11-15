@@ -14,11 +14,15 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.urls import path
 from django.urls import include, path
+from django.views.generic import RedirectView
 from config.admin_site import transconnect_admin_site
 
 urlpatterns = [
+    path('', RedirectView.as_view(pattern_name='expeditions:liste', permanent=False), name='home'),
     path('admin/', transconnect_admin_site.urls),
-    path('expedition/', include('ExpeditionsApp.urls')),  # Redirect root URL to admin site
+    path('expeditions/', include('ExpeditionsApp.urls')),
+    path('vehicules/', include('VehiculesApp.urls')),
+    path('offres/', include('OffresApp.urls')),
+    path('entreprises/', include('EntreprisesApp.urls')),
 ]

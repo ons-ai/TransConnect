@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Confirmer la suppression — TransConnect{% endblock %}
+{% block content %}
+  <h2>Confirmer la suppression</h2>
+  <p>Voulez-vous supprimer « {{ object }} » ?</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit">Confirmer la suppression</button>
+    <a href="javascript:history.back()">Annuler</a>
+  </form>
+{% endblock %}

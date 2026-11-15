@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{% if form.instance.pk %}Modifier{% else %}Créer{% endif %} — TransConnect{% endblock %}
+{% block content %}
+  <h2>{% if form.instance.pk %}Modifier{% else %}Créer{% endif %} un enregistrement</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Enregistrer</button>
+  </form>
+{% endblock %}
