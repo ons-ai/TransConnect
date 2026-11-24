@@ -7,7 +7,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
-from EntreprisesApp.models import Entreprise
+from EntreprisesApp.mixins import TransporteurRequisMixin
 from ExpeditionsApp.models import Expedition
 from VehiculesApp.models import Vehicule
 from .forms import OffreForm, OffreUpdateForm
@@ -47,17 +47,10 @@ class OffreDetailView(DetailView):
         return Offre.objects.select_related("expedition", "transporteur", "vehicule")
 
 
-class OffreCreateView(CreateView):
+class OffreCreateView(TransporteurRequisMixin, CreateView):
     model = Offre
     form_class = OffreForm
     template_name = "shared/form.html"
-
-    def get_entreprise_courante(self):
-        return get_object_or_404(
-            Entreprise,
-            pk=self.kwargs["entreprise_id"],
-            type_entreprise=Entreprise.TypeEntreprise.TRANSPORTEUR,
-        )
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
@@ -65,13 +58,13 @@ class OffreCreateView(CreateView):
             statut=Expedition.Statut.PUBLIEE
         ).select_related("entreprise")
         form.fields["vehicule"].queryset = Vehicule.objects.filter(
-            entreprise=self.get_entreprise_courante(), disponible=True
+            entreprise=self.request.user.entreprise, disponible=True
         )
         return form
 
     def form_valid(self, form):
         # Carrier and status are deliberately absent from the submitted form.
-        form.instance.transporteur = self.get_entreprise_courante()
+        form.instance.transporteur = self.request.user.entreprise
         try:
             return super().form_valid(form)
         except ValidationError as error:
@@ -82,14 +75,14 @@ class OffreCreateView(CreateView):
         return reverse("expeditions:detail", kwargs={"reference": self.object.expedition.reference})
 
 
-class OffreUpdateView(UpdateView):
+class OffreUpdateView(TransporteurRequisMixin, UpdateView):
     model = Offre
     form_class = OffreUpdateForm
     template_name = "shared/form.html"
 
     def get_queryset(self):
         return Offre.objects.filter(
-            transporteur_id=self.kwargs["entreprise_id"],
+            transporteur=self.request.user.entreprise,
             statut=Offre.Statut.PROPOSEE,
         ).select_related("transporteur")
 
@@ -104,13 +97,16 @@ class OffreUpdateView(UpdateView):
         return reverse("offres:detail", kwargs={"pk": self.object.pk})
 
 
-class OffreDeleteView(DeleteView):
+class OffreDeleteView(TransporteurRequisMixin, DeleteView):
     model = Offre
     template_name = "shared/confirm_delete.html"
     success_url = reverse_lazy("offres:liste")
 
     def get_queryset(self):
-        return Offre.objects.filter(statut=Offre.Statut.PROPOSEE)
+        return Offre.objects.filter(
+            transporteur=self.request.user.entreprise,
+            statut=Offre.Statut.PROPOSEE,
+        )
 
 
 # Retained as a safe-method example from the FBV workshop; the active URL uses DeleteView.

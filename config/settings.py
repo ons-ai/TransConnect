@@ -57,6 +57,11 @@ INSTALLED_APPS = [
 
 AUTH_USER_MODEL = 'EntreprisesApp.Utilisateur'
 
+# Named routes provided by django.contrib.auth.urls.
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'expeditions:liste'
+LOGOUT_REDIRECT_URL = 'expeditions:liste'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -136,6 +141,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
 
 # Email

@@ -7,12 +7,12 @@
     <dt>Véhicule</dt><dd><a href="{% url 'vehicules:detail' offre.vehicule_id %}">{{ offre.vehicule.immatriculation|upper }}</a></dd>
     <dt>Prix</dt><dd>{{ offre.prix }} TND</dd>
     <dt>Délai</dt><dd>{{ offre.delai_jours }} jour{{ offre.delai_jours|pluralize }}</dd>
-    <dt>Statut</dt><dd>{{ offre.get_statut_display|capfirst }}</dd>
+    <dt>Statut</dt><dd><span class="status status--{{ offre.statut }}">{{ offre.get_statut_display|capfirst }}</span></dd>
     <dt>Proposée le</dt><dd>{{ offre.date_proposition|date:"d/m/Y" }}</dd>
   </dl>
-  {% if offre.statut == "proposee" %}
+  {% if user.is_authenticated and user.entreprise_id == offre.transporteur_id and offre.statut == "proposee" %}
     <p class="actions">
-      <a href="{% url 'offres:modifier' offre.pk offre.transporteur_id %}">Modifier</a>
+      <a href="{% url 'offres:modifier' offre.pk %}">Modifier</a>
       <a href="{% url 'offres:supprimer' offre.pk %}">Retirer</a>
     </p>
   {% endif %}

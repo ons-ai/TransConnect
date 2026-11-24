@@ -1,28 +1,49 @@
 <!doctype html>
 <html lang="fr">
 <head>
+  {% load static %}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}TransConnect{% endblock %}</title>
-  <style>
-    body { max-width: 980px; margin: 2rem auto; padding: 0 1rem; font: 16px/1.5 system-ui, sans-serif; color: #17212b; }
-    nav { display: flex; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid #ccd3da; }
-    a { color: #0758a5; } main { padding: 1rem 0; }
-    li { margin: .6rem 0; } form p { margin: .8rem 0; }
-    input, select, textarea { max-width: 100%; } .actions { display: flex; gap: .8rem; }
-  </style>
+  <link rel="stylesheet" href="{% static 'css/transconnect.css' %}">
 </head>
 <body>
-  <header>
-    <h1><a href="{% url 'expeditions:liste' %}">TransConnect</a></h1>
+  <header class="site-header">
+    <div class="site-brand">
+      <a class="brand-mark" href="{% url 'expeditions:liste' %}" aria-label="TransConnect, accueil">TC</a>
+      <div>
+        <h1><a href="{% url 'expeditions:liste' %}">TransConnect</a></h1>
+        <p>Le transport, simplement connecté.</p>
+      </div>
+    </div>
     <nav aria-label="Navigation principale">
       <a href="{% url 'expeditions:liste' %}">Expéditions</a>
-      <a href="{% url 'vehicules:liste' %}">Véhicules</a>
       <a href="{% url 'offres:liste' %}">Offres</a>
       <a href="{% url 'entreprises:liste' %}">Entreprises</a>
-      <a href="/admin/">Administration</a>
+      {% if user.is_authenticated %}
+        <span>Connecté : {{ user.username }}</span>
+        {% if user.entreprise.type_entreprise == "transporteur" %}
+          <a href="{% url 'vehicules:mes' %}">Mes véhicules</a>
+          <a href="{% url 'vehicules:ajouter' %}">Ajouter un véhicule</a>
+          <a href="{% url 'offres:ajouter' %}">Proposer une offre</a>
+        {% elif user.entreprise.type_entreprise == "chargeur" %}
+          <a href="{% url 'expeditions:ajouter' %}">Publier une expédition</a>
+        {% else %}
+          <a href="{% url 'entreprises:ajouter' %}">Créer mon entreprise</a>
+        {% endif %}
+        <a href="{% url 'password_change' %}">Changer mon mot de passe</a>
+        {% if user.is_staff %}<a href="/admin/">Administration</a>{% endif %}
+        <form method="post" action="{% url 'logout' %}" class="logout-form">
+          {% csrf_token %}
+          <button type="submit">Se déconnecter</button>
+        </form>
+      {% else %}
+        <a href="{% url 'login' %}">Se connecter</a>
+        <a href="{% url 'inscription' %}">Créer un compte</a>
+      {% endif %}
     </nav>
   </header>
-  <main>{% block content %}{% endblock %}</main>
+  <main class="page-content">{% block content %}{% endblock %}</main>
+  <footer class="site-footer">TransConnect <span>•</span> Une plateforme pour vos expéditions</footer>
 </body>
 </html>

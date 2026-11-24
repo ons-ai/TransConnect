@@ -7,7 +7,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
-from EntreprisesApp.models import Entreprise
+from EntreprisesApp.mixins import ChargeurRequisMixin
 from .forms import ExpeditionForm, ExpeditionUpdateForm
 from .models import Expedition
 
@@ -59,20 +59,13 @@ class ExpeditionDetailView(DetailView):
         return context
 
 
-class ExpeditionCreateView(CreateView):
+class ExpeditionCreateView(ChargeurRequisMixin, CreateView):
     model = Expedition
     form_class = ExpeditionForm
     template_name = "shared/form.html"
 
-    def get_entreprise_courante(self):
-        return get_object_or_404(
-            Entreprise,
-            pk=self.kwargs["entreprise_id"],
-            type_entreprise=Entreprise.TypeEntreprise.CHARGEUR,
-        )
-
     def form_valid(self, form):
-        form.instance.entreprise = self.get_entreprise_courante()
+        form.instance.entreprise = self.request.user.entreprise
         try:
             return super().form_valid(form)
         except ValidationError as error:
@@ -83,22 +76,20 @@ class ExpeditionCreateView(CreateView):
         return reverse("expeditions:detail", kwargs={"reference": self.object.reference})
 
 
-class ExpeditionUpdateView(UpdateView):
+class ExpeditionsDeMonEntrepriseMixin:
+    def get_queryset(self):
+        return Expedition.objects.filter(entreprise=self.request.user.entreprise)
+
+
+class ExpeditionUpdateView(ChargeurRequisMixin, ExpeditionsDeMonEntrepriseMixin, UpdateView):
     model = Expedition
     form_class = ExpeditionUpdateForm
     template_name = "shared/form.html"
     slug_field = "reference"
     slug_url_kwarg = "reference"
 
-    def get_queryset(self):
-        return Expedition.objects.filter(entreprise_id=self.kwargs["entreprise_id"])
-
     def form_valid(self, form):
-        form.instance.entreprise = get_object_or_404(
-            Entreprise,
-            pk=self.kwargs["entreprise_id"],
-            type_entreprise=Entreprise.TypeEntreprise.CHARGEUR,
-        )
+        form.instance.entreprise = self.request.user.entreprise
         try:
             return super().form_valid(form)
         except ValidationError as error:
@@ -109,7 +100,7 @@ class ExpeditionUpdateView(UpdateView):
         return reverse("expeditions:detail", kwargs={"reference": self.object.reference})
 
 
-class ExpeditionDeleteView(DeleteView):
+class ExpeditionDeleteView(ChargeurRequisMixin, ExpeditionsDeMonEntrepriseMixin, DeleteView):
     model = Expedition
     template_name = "shared/confirm_delete.html"
     slug_field = "reference"

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Créer un compte — TransConnect{% endblock %}
+{% block content %}
+  <h2>Créer un compte</h2>
+  <p>Après votre inscription, vous pourrez rattacher votre entreprise au compte.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Créer mon compte</button>
+  </form>
+  <p>Vous avez déjà un compte ? <a href="{% url 'login' %}">Se connecter</a></p>
+{% endblock %}

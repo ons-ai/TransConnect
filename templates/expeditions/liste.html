@@ -6,10 +6,14 @@
     {% for expedition in expeditions %}
       <li>
         <a href="{% url 'expeditions:detail' expedition.reference %}">{{ expedition.reference }}</a>
+        <span class="status status--publiee">{{ expedition.get_statut_display }}</span>
         — {{ expedition.ville_depart|title }} → {{ expedition.ville_arrivee|title }}
         ({{ expedition.poids_kg|floatformat:0 }} kg, souhaitée le {{ expedition.date_souhaitee|date:"d/m/Y" }})
         <br><small>{{ expedition.description|default:"Aucune description fournie."|truncatewords:15 }}</small>
         <br><small>Chargeur : {{ expedition.entreprise.raison_sociale|upper }}</small>
+        {% if user.is_authenticated and user.entreprise.type_entreprise == "transporteur" %}
+          {% if expedition.statut == "publiee" %}<br><a href="{% url 'offres:ajouter' %}">Proposer une offre</a>{% endif %}
+        {% endif %}
       </li>
     {% empty %}
       <li>Aucune expédition disponible pour le moment.</li>

@@ -5,14 +5,16 @@
   <dl>
     <dt>Type</dt><dd>{{ vehicule.get_type_vehicule_display|capfirst }}</dd>
     <dt>Capacité</dt><dd>{{ vehicule.capacite_kg }} kg</dd>
-    <dt>Disponible</dt><dd>{{ vehicule.disponible|yesno:"oui,non" }}</dd>
+    <dt>Disponible</dt><dd><span class="status {% if vehicule.disponible %}status--publiee{% else %}status--indisponible{% endif %}">{{ vehicule.disponible|yesno:"Oui,Non" }}</span></dd>
     <dt>Transporteur</dt><dd><a href="{% url 'entreprises:detail' vehicule.entreprise_id %}">{{ vehicule.entreprise.raison_sociale|upper }}</a></dd>
   </dl>
   <h3>Offres associées</h3>
   <ul>{% for offre in offres %}<li><a href="{% url 'offres:detail' offre.pk %}">{{ offre.expedition.reference }}</a> — {{ offre.get_statut_display|capfirst }}</li>
     {% empty %}<li>Aucune offre associée.</li>{% endfor %}</ul>
-  <p class="actions">
-    <a href="{% url 'vehicules:modifier' vehicule.pk vehicule.entreprise_id %}">Modifier</a>
-    {% if can_delete %}<a href="{% url 'vehicules:supprimer' vehicule.pk %}">Supprimer</a>{% endif %}
-  </p>
+  {% if user.is_authenticated and user.entreprise_id == vehicule.entreprise_id %}
+    <p class="actions">
+      <a href="{% url 'vehicules:modifier' vehicule.pk %}">Modifier</a>
+      {% if can_delete %}<a href="{% url 'vehicules:supprimer' vehicule.pk %}">Supprimer</a>{% endif %}
+    </p>
+  {% endif %}
 {% endblock %}

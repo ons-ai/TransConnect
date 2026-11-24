@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Véhicules — TransConnect{% endblock %}
+{% block title %}{% if request.resolver_match.url_name == "mes" %}Mes véhicules{% else %}Véhicules{% endif %} — TransConnect{% endblock %}
 {% block content %}
-  <h2>Véhicules</h2>
+  <h2>{% if request.resolver_match.url_name == "mes" %}Mes véhicules{% else %}Véhicules{% endif %}</h2>
   <ul>
     {% for vehicule in vehicules %}
       <li><a href="{% url 'vehicules:detail' vehicule.pk %}">{{ vehicule.immatriculation|upper }}</a>

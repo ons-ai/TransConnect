@@ -305,32 +305,37 @@ class SeedDemoCommandTests(TestCase):
 class TransConnectViewsTests(TestCase):
     def setUp(self):
         User = get_user_model()
+        self.shipper_user = User.objects.create_user(
+            username="views-shipper", email="views.shipper@gmail.com", password="pw"
+        )
+        self.carrier_user = User.objects.create_user(
+            username="views-carrier", email="views.carrier@gmail.com", password="pw",
+            role=User.Role.TRANSPORTEUR,
+        )
+        self.other_carrier_user = User.objects.create_user(
+            username="views-carrier-2", email="views.carrier2@gmail.com", password="pw",
+            role=User.Role.TRANSPORTEUR,
+        )
         self.shipper = Entreprise.objects.create(
             raison_sociale="Chargeur pour vues",
             matricule_fiscal="4567890AAM000",
             type_entreprise=Entreprise.TypeEntreprise.CHARGEUR,
             adresse="12 avenue des tests, Sousse, Tunisie",
-            utilisateur=User.objects.create_user(
-                username="views-shipper", email="views.shipper@gmail.com", password="pw"
-            ),
+            utilisateur=self.shipper_user,
         )
         self.carrier = Entreprise.objects.create(
             raison_sociale="Transporteur pour vues",
             matricule_fiscal="5678901BBP000",
             type_entreprise=Entreprise.TypeEntreprise.TRANSPORTEUR,
             adresse="18 rue des tests, Tunis, Tunisie",
-            utilisateur=User.objects.create_user(
-                username="views-carrier", email="views.carrier@gmail.com", password="pw"
-            ),
+            utilisateur=self.carrier_user,
         )
         self.other_carrier = Entreprise.objects.create(
             raison_sociale="Autre transporteur",
             matricule_fiscal="6789012DAN000",
             type_entreprise=Entreprise.TypeEntreprise.TRANSPORTEUR,
             adresse="20 avenue des tests, Sfax, Tunisie",
-            utilisateur=User.objects.create_user(
-                username="views-carrier-2", email="views.carrier2@gmail.com", password="pw"
-            ),
+            utilisateur=self.other_carrier_user,
         )
         self.vehicle = Vehicule.objects.create(
             immatriculation="TU-VIEW-1",
@@ -387,8 +392,9 @@ class TransConnectViewsTests(TestCase):
             404,
         )
 
-    def test_vehicle_form_hides_ownership_and_availability_and_create_uses_route_company(self):
-        url = reverse("vehicules:ajouter", kwargs={"entreprise_id": self.carrier.pk})
+    def test_vehicle_form_hides_ownership_and_availability_and_create_uses_signed_in_company(self):
+        self.client.force_login(self.carrier_user)
+        url = reverse("vehicules:ajouter")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("entreprise", response.context["form"].fields)
@@ -407,7 +413,7 @@ class TransConnectViewsTests(TestCase):
         self.assertTrue(created.disponible)
 
         response = self.client.post(
-            reverse("vehicules:modifier", kwargs={"pk": created.pk, "entreprise_id": self.carrier.pk}),
+            reverse("vehicules:modifier", kwargs={"pk": created.pk}),
             {
                 "immatriculation": "TU-VIEW-NEW",
                 "type_vehicule": Vehicule.TypeVehicule.FOURGON,
@@ -423,7 +429,8 @@ class TransConnectViewsTests(TestCase):
         self.assertTrue(created.disponible)
 
     def test_expedition_create_and_update_keep_company_and_status_server_side(self):
-        create_url = reverse("expeditions:ajouter", kwargs={"entreprise_id": self.shipper.pk})
+        self.client.force_login(self.shipper_user)
+        create_url = reverse("expeditions:ajouter")
         response = self.client.get(create_url)
         self.assertNotIn("entreprise", response.context["form"].fields)
         self.assertNotIn("statut", response.context["form"].fields)
@@ -443,7 +450,7 @@ class TransConnectViewsTests(TestCase):
 
         update_url = reverse(
             "expeditions:modifier",
-            kwargs={"reference": created.reference, "entreprise_id": self.shipper.pk},
+            kwargs={"reference": created.reference},
         )
         response = self.client.post(update_url, {
             "ville_depart": "Sfax",
@@ -461,7 +468,8 @@ class TransConnectViewsTests(TestCase):
         self.assertEqual(created.statut, Expedition.Statut.PUBLIEE)
 
     def test_offer_form_sets_carrier_and_status_on_server_and_limits_choices(self):
-        url = reverse("offres:ajouter", kwargs={"entreprise_id": self.carrier.pk})
+        self.client.force_login(self.carrier_user)
+        url = reverse("offres:ajouter")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
@@ -486,6 +494,7 @@ class TransConnectViewsTests(TestCase):
         self.assertEqual(self.expedition.statut, Expedition.Statut.PUBLIEE)
 
     def test_offer_model_validation_is_returned_as_a_form_error(self):
+        self.client.force_login(self.carrier_user)
         Offre.objects.create(
             expedition=self.expedition,
             transporteur=self.carrier,
@@ -494,7 +503,7 @@ class TransConnectViewsTests(TestCase):
             delai_jours=2,
         )
         response = self.client.post(
-            reverse("offres:ajouter", kwargs={"entreprise_id": self.carrier.pk}),
+            reverse("offres:ajouter"),
             {
                 "expedition": self.expedition.pk,
                 "vehicule": self.vehicle.pk,
@@ -507,6 +516,7 @@ class TransConnectViewsTests(TestCase):
         self.assertEqual(Offre.objects.count(), 1)
 
     def test_delete_confirmation_get_does_not_delete_and_post_does(self):
+        self.client.force_login(self.other_carrier_user)
         url = reverse("vehicules:supprimer", kwargs={"pk": self.other_vehicle.pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -516,6 +526,7 @@ class TransConnectViewsTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Vehicule.objects.filter(pk=self.other_vehicle.pk).exists())
 
+        self.client.force_login(self.carrier_user)
         proposed = Offre.objects.create(
             expedition=self.expedition,
             transporteur=self.carrier,
@@ -543,6 +554,7 @@ class TransConnectViewsTests(TestCase):
         self.assertEqual(self.client.get(blocked_delete).status_code, 404)
         self.assertTrue(Vehicule.objects.filter(pk=self.vehicle.pk).exists())
 
+        self.client.force_login(self.shipper_user)
         shipment_url = reverse("expeditions:supprimer", kwargs={"reference": self.expedition.reference})
         self.assertEqual(self.client.get(shipment_url).status_code, 200)
         self.assertTrue(Expedition.objects.filter(pk=self.expedition.pk).exists())
@@ -550,13 +562,15 @@ class TransConnectViewsTests(TestCase):
         self.assertFalse(Expedition.objects.filter(pk=self.expedition.pk).exists())
 
     def test_vehicle_update_cannot_cross_company_boundary(self):
+        self.client.force_login(self.carrier_user)
         response = self.client.get(reverse(
             "vehicules:modifier",
-            kwargs={"pk": self.other_vehicle.pk, "entreprise_id": self.carrier.pk},
+            kwargs={"pk": self.other_vehicle.pk},
         ))
         self.assertEqual(response.status_code, 404)
 
     def test_offer_update_only_changes_terms_of_the_route_carriers_proposal(self):
+        self.client.force_login(self.carrier_user)
         offer = Offre.objects.create(
             expedition=self.expedition,
             transporteur=self.carrier,
@@ -564,7 +578,7 @@ class TransConnectViewsTests(TestCase):
             prix=Decimal("450.00"),
             delai_jours=2,
         )
-        url = reverse("offres:modifier", kwargs={"pk": offer.pk, "entreprise_id": self.carrier.pk})
+        url = reverse("offres:modifier", kwargs={"pk": offer.pk})
         response = self.client.get(url)
         self.assertEqual(set(response.context["form"].fields), {"prix", "delai_jours"})
         response = self.client.post(url, {

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Connexion — TransConnect{% endblock %}
+{% block content %}
+  <h2>Connexion</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit">Se connecter</button>
+  </form>
+  <p>Pas encore de compte ? <a href="{% url 'inscription' %}">Créer un compte</a></p>
+{% endblock %}

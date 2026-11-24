@@ -7,7 +7,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
-from EntreprisesApp.models import Entreprise
+from EntreprisesApp.mixins import TransporteurRequisMixin
 from OffresApp.models import Offre
 from .forms import VehiculeForm
 from .models import Vehicule
@@ -49,20 +49,13 @@ class VehiculeDetailView(DetailView):
         return context
 
 
-class VehiculeCreateView(CreateView):
+class VehiculeCreateView(TransporteurRequisMixin, CreateView):
     model = Vehicule
     form_class = VehiculeForm
     template_name = "shared/form.html"
 
-    def get_entreprise_courante(self):
-        return get_object_or_404(
-            Entreprise,
-            pk=self.kwargs["entreprise_id"],
-            type_entreprise=Entreprise.TypeEntreprise.TRANSPORTEUR,
-        )
-
     def form_valid(self, form):
-        form.instance.entreprise = self.get_entreprise_courante()
+        form.instance.entreprise = self.request.user.entreprise
         try:
             return super().form_valid(form)
         except ValidationError as error:
@@ -73,20 +66,18 @@ class VehiculeCreateView(CreateView):
         return reverse("vehicules:detail", kwargs={"pk": self.object.pk})
 
 
-class VehiculeUpdateView(UpdateView):
-    model = Vehicule
-    form_class = VehiculeForm
-    template_name = "shared/form.html"
-
+class VehiculesDeMonEntrepriseMixin:
     def get_queryset(self):
-        return Vehicule.objects.filter(entreprise_id=self.kwargs["entreprise_id"])
+        return Vehicule.objects.filter(entreprise=self.request.user.entreprise)
+
+
+class VehiculeUpdateView(TransporteurRequisMixin, VehiculesDeMonEntrepriseMixin, UpdateView):
+    model = Vehicule
+    form_class = VehiculeForm
+    template_name = "shared/form.html"
 
     def form_valid(self, form):
-        form.instance.entreprise = get_object_or_404(
-            Entreprise,
-            pk=self.kwargs["entreprise_id"],
-            type_entreprise=Entreprise.TypeEntreprise.TRANSPORTEUR,
-        )
+        form.instance.entreprise = self.request.user.entreprise
         try:
             return super().form_valid(form)
         except ValidationError as error:
@@ -97,13 +88,22 @@ class VehiculeUpdateView(UpdateView):
         return reverse("vehicules:detail", kwargs={"pk": self.object.pk})
 
 
-class VehiculeDeleteView(DeleteView):
+class VehiculeDeleteView(TransporteurRequisMixin, VehiculesDeMonEntrepriseMixin, DeleteView):
     model = Vehicule
     template_name = "shared/confirm_delete.html"
     success_url = reverse_lazy("vehicules:liste")
 
     def get_queryset(self):
-        return Vehicule.objects.exclude(offres__statut=Offre.Statut.ACCEPTEE)
+        return super().get_queryset().exclude(offres__statut=Offre.Statut.ACCEPTEE)
+
+
+class MesVehiculesView(TransporteurRequisMixin, ListView):
+    model = Vehicule
+    template_name = "vehicules/liste.html"
+    context_object_name = "vehicules"
+
+    def get_queryset(self):
+        return Vehicule.objects.filter(entreprise=self.request.user.entreprise).order_by("immatriculation")
 
 
 @require_http_methods(["GET", "POST"])

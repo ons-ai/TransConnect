@@ -17,10 +17,13 @@ Including another URLconf
 from django.urls import include, path
 from django.views.generic import RedirectView
 from config.admin_site import transconnect_admin_site
+from EntreprisesApp.views import InscriptionView
 
 urlpatterns = [
     path('', RedirectView.as_view(pattern_name='expeditions:liste', permanent=False), name='home'),
     path('admin/', transconnect_admin_site.urls),
+    path('comptes/', include('django.contrib.auth.urls')),
+    path('comptes/inscription/', InscriptionView.as_view(), name='inscription'),
     path('expeditions/', include('ExpeditionsApp.urls')),
     path('vehicules/', include('VehiculesApp.urls')),
     path('offres/', include('OffresApp.urls')),

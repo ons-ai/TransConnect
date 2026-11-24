@@ -6,7 +6,7 @@
     <dt>Trajet</dt><dd>{{ expedition.ville_depart|title }} → {{ expedition.ville_arrivee|title }}</dd>
     <dt>Poids</dt><dd>{{ expedition.poids_kg }} kg</dd>
     <dt>Date souhaitée</dt><dd>{{ expedition.date_souhaitee|date:"d/m/Y" }}</dd>
-    <dt>Statut</dt><dd>{{ expedition.get_statut_display|capfirst }}</dd>
+    <dt>Statut</dt><dd><span class="status status--{{ expedition.statut }}">{{ expedition.get_statut_display|capfirst }}</span></dd>
     <dt>Chargeur</dt><dd><a href="{% url 'entreprises:detail' expedition.entreprise_id %}">{{ expedition.entreprise.raison_sociale|upper }}</a></dd>
     <dt>Description</dt><dd>{{ expedition.description|default:"Aucune description."|linebreaks }}</dd>
   </dl>
@@ -18,8 +18,15 @@
         ({{ offre.get_statut_display|capfirst }})</li>
     {% empty %}<li>Aucune offre pour le moment.</li>{% endfor %}
   </ul>
-  <p class="actions">
-    <a href="{% url 'expeditions:modifier' expedition.reference expedition.entreprise_id %}">Modifier</a>
-    <a href="{% url 'expeditions:supprimer' expedition.reference %}">Supprimer</a>
-  </p>
+  {% if user.is_authenticated %}
+    {% if user.entreprise.type_entreprise == "transporteur" and expedition.statut == "publiee" %}
+      <p><a href="{% url 'offres:ajouter' %}">Proposer une offre</a></p>
+    {% endif %}
+    {% if user.entreprise_id == expedition.entreprise_id %}
+      <p class="actions">
+        <a href="{% url 'expeditions:modifier' expedition.reference %}">Modifier</a>
+        <a href="{% url 'expeditions:supprimer' expedition.reference %}">Supprimer</a>
+      </p>
+    {% endif %}
+  {% endif %}
 {% endblock %}
